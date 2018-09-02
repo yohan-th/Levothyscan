@@ -4,11 +4,25 @@ import sys
 import csv
 import threading
 import time
+import unicodedata
+
 
 # Parametre
 search = "levothyrox"
 rubrique = "29*sante"
 debug = False
+
+
+def clean_message(messages):
+    print("clean message")
+    clean_msg_all = []
+    for msg in messages:
+        msg = re.sub(',', '', msg)  # Pour un decoupage correct sur excel
+        msg = re.sub('<div.*?</div>', '', msg)  # suppr les citations
+        msg = re.sub('<img.*?/>', '', msg)  #suppr les images
+        msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
+        clean_msg_all.append(msg)
+    return(clean_msg_all)
 
 class ClientThread(threading.Thread):
 
@@ -26,7 +40,7 @@ class ClientThread(threading.Thread):
                 html = rep.read().decode('utf-8')
         except (http.client.IncompleteRead) as e:
             html = e.partial.decode('utf-8')
-        messages_page = re.findall(r"</td.*?itemprop=\"text\"(.*?)class=\"clear\"", html)
+        messages_page = clean_message(re.findall(r"</td.*?itemprop=\"text\"(.*?)class=\"clear\"", html))
         pseudo_all_message = re.findall(r"itemprop=\"name\">(.*?)/span", html, re.MULTILINE | re.DOTALL)
         date_all_message = re.findall(r"topic_posted.*?le (.*?)&nbsp;", html, re.MULTILINE | re.DOTALL)
         if debug:
@@ -37,8 +51,6 @@ class ClientThread(threading.Thread):
                 pseudo_all_message[i] = re.search("\" >(.*?)<", pseudo_all_message[i]).group(1)
             message_infos = [messages_page[i], pseudo_all_message[i], date_all_message[i], self.url]
             all_messages.append(message_infos)
-            if debug:
-                print("["+all_messages[-1]+"]")
             i += 1
         print("[" + str(len(messages_page)) + " new msg sur \"" + self.sujet + "\" de la page " + str(self.page) + " sur " + self.nb_page + "]")
 
