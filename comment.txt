@@ -3,6 +3,3 @@
 
 [2] Faire plusieurs fichiers CSV pour séparer les données récoltées + 1 gros fichier CSV regroupant tous les petits CSV.
 
-[3] Supprimer les caractères suivant : <br />   ^^   &#034;   </p>    <p>
-
-
