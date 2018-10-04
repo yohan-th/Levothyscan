@@ -12,14 +12,21 @@ search = "levothyrox"
 rubrique = "29*sante"
 debug = False
 
-
 def clean_message(messages):
     print("clean message")
     clean_msg_all = []
     for msg in messages:
         msg = re.sub(',', '', msg)  # Pour un decoupage correct sur excel
-        msg = re.sub('<div.*?</div>', '', msg)  # suppr les citations
-        msg = re.sub('<img.*?/>', '', msg)  #suppr les images
+        msg = re.sub('<div.*?</div>', ' ', msg)  # suppr les citations
+        msg = re.sub('<img.*?/>', ' ', msg)  #suppr les images
+        msg = re.sub('<br />', ' ', msg) #suppr les balise br
+        msg = re.sub('</?span.*?>', '', msg)
+        msg = re.sub('</?[pb]>', ' ', msg)
+        msg = re.sub('</?div>?', ' ', msg)
+        msg = re.sub('&#034;', ' ', msg)
+        msg = re.sub('&nbsp;', ' ', msg)
+        while re.search(" ['\w^\.><]{0,4} ", msg):
+            msg = re.sub(" ['\w^\.><]{0,4} ", ' ', msg)
         msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
         clean_msg_all.append(msg)
     return(clean_msg_all)
@@ -65,8 +72,8 @@ def get_nbr_page(html):
 
 print("Recherche de <"+search+"> dans la rubrique <"+rubrique+">")
 if debug:
-    print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=100')
-with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=100') as response:
+    print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250')
+with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250') as response:
    html = response.read().decode('utf-8')
 if re.match(r".*aucune réponse n'a été trouvée.*", html, re.MULTILINE|re.DOTALL):
     print("La recherche donne aucune reponse")
@@ -80,8 +87,8 @@ i = 1
 while i <= int(nb_page_topic):
     print("telechargement de page " + str(i) + " sur " + nb_page_topic)
     if debug:
-        print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=100&page='+str(i))
-    with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=100&page='+str(i)) as response:
+        print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(i))
+    with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(i)) as response:
         html = response.read().decode('utf-8')
     topics = re.findall(r"</?t.*?sujet ligne_booleen(.+?)</tr>", html, re.MULTILINE | re.DOTALL)
     for topic in topics:
@@ -107,18 +114,13 @@ for url in all_topics_url:
         newthread.start()
         threadList.append(newthread)
         page += 1
-    time.sleep(1)
 
 print("Attente des threats")
 for curThread in threadList :
     curThread.join()
 
 print(str(len(all_messages)) + " messages total récoltés en fin de script")
-print(all_messages)
 
 with open('output.csv', 'w', newline='', encoding='utf-8') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(all_messages)
-
-    
-  
