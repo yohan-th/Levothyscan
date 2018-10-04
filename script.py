@@ -120,3 +120,5 @@ with open('output.csv', 'w', newline='', encoding='utf-8') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerows(all_messages)
 
+    
+  
