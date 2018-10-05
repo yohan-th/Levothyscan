@@ -3,35 +3,37 @@ import re
 import sys
 import csv
 import threading
-import time
+import timeit
 import unicodedata
 
 
 # Parametre
 search = "levothyrox"
-rubrique = "29*sante"
+rubrique = "18*sante"
 debug = False
 
 def clean_message(messages):
-    print("clean message")
+    if debug:
+        print("clean message")
     clean_msg_all = []
     for msg in messages:
         msg = re.sub(',', '', msg)  # Pour un decoupage correct sur excel
         msg = re.sub('<div.*?</div>', ' ', msg)  # suppr les citations
         msg = re.sub('<img.*?/>', ' ', msg)  #suppr les images
         msg = re.sub('<br />', ' ', msg) #suppr les balise br
-        msg = re.sub('</?span.*?>', '', msg)
+        msg = re.sub('<a rel=.*?</a>', ' ', msg) #suppr les liens externe
+        msg = re.sub('</?span.*?>', ' ', msg)
         msg = re.sub('</?[pb]>', ' ', msg)
         msg = re.sub('</?div>?', ' ', msg)
         msg = re.sub('&#034;', ' ', msg)
         msg = re.sub('&nbsp;', ' ', msg)
-        while re.search(" ['\w^\.><]{0,4} ", msg):
-            msg = re.sub(" ['\w^\.><]{0,4} ", ' ', msg)
+        while re.search(" ['\w^.><?!)(/:+-]{0,4} ", msg):
+            msg = re.sub(" ['\w^.><?!)(/:+-]{0,4} ", ' ', msg)
         msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
         clean_msg_all.append(msg)
     return(clean_msg_all)
 
-class ClientThread(threading.Thread):
+class GetAllPages_topic_Thread(threading.Thread):
 
     def __init__(self, url, page, nb_page, sujet):
         threading.Thread.__init__(self)
@@ -41,7 +43,8 @@ class ClientThread(threading.Thread):
         self.sujet = sujet
 
     def run(self):
-        print("[Ouverture URL de \"" + self.sujet + "\" page " + str(page) + "]")
+        if debug:
+            print("[Ouverture URL de \"" + self.sujet + "\" page " + str(page) + "]")
         try:
             with urllib.request.urlopen(self.url) as rep:
                 html = rep.read().decode('utf-8')
@@ -59,7 +62,8 @@ class ClientThread(threading.Thread):
             message_infos = [messages_page[i], pseudo_all_message[i], date_all_message[i], self.url]
             all_messages.append(message_infos)
             i += 1
-        print("[" + str(len(messages_page)) + " new msg sur \"" + self.sujet + "\" de la page " + str(self.page) + " sur " + self.nb_page + "]")
+        if debug:
+            print("[" + str(len(messages_page)) + " new msg sur \"" + self.sujet + "\" de la page " + str(self.page) + " sur " + self.nb_page + "]")
 
 
 def get_nbr_page(html):
@@ -69,7 +73,7 @@ def get_nbr_page(html):
     else:
         return("1")
 
-
+start = timeit.default_timer()
 print("Recherche de <"+search+"> dans la rubrique <"+rubrique+">")
 if debug:
     print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250')
@@ -83,43 +87,59 @@ nb_page_topic = get_nbr_page(html)
 print(nb_page_topic+" page(s) sur le sujet <"+search+"> dans la rubrique <"+rubrique+"> (limité à 100 topics par page)")
 
 all_topics_url = []
-i = 1
-while i <= int(nb_page_topic):
-    print("telechargement de page " + str(i) + " sur " + nb_page_topic)
+page = 1
+while page <= int(nb_page_topic):
+    print("telechargement de page " + str(page) + " sur " + nb_page_topic)
     if debug:
-        print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(i))
-    with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(i)) as response:
+        print('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(page))
+    with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250&page='+str(page)) as response:
         html = response.read().decode('utf-8')
     topics = re.findall(r"</?t.*?sujet ligne_booleen(.+?)</tr>", html, re.MULTILINE | re.DOTALL)
     for topic in topics:
         all_topics_url.append(re.search(r"href=\"(.+?)\"", topic).group(1))
-    i += 1
+    page += 1
 print("nb de topic = " + str(len(all_topics_url)))
 
 all_messages = [['Message', 'Pseudo', 'Date', 'URL']]
+
 threadList = []
+i = 0
+files = 0
 for url in all_topics_url:
-    print(str(len(all_messages)) + " messages total récoltés")
     with urllib.request.urlopen(url) as response:
         html = response.read().decode('utf-8')
     nb_page_topic = get_nbr_page(html)
     sujet_topic = re.search("itemprop=\"headline\"(.*?)<", html).group(1)
-    print("topic \""+sujet_topic+"\" avec "+str(nb_page_topic)+" page(s)")
+    if debug:
+        print("topic \""+sujet_topic+"\" avec "+str(nb_page_topic)+" page(s)")
+    if int(nb_page_topic) > 10:
+        print("WARNING : topic \""+sujet_topic+"\" contient "+str(nb_page_topic)+" pages. Risque probable de perte de 50 messages sur",int(nb_page_topic)*50, "pour chaque erreur ci-dessous :")
+        print("          Code erreur \"ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host\"")
     page = 1
     while page <= int(nb_page_topic):
         clean_url = re.search(r"(.*)_", url).group(1)
         if debug:
             print(clean_url+"_"+str(page)+".htm")
-        newthread = ClientThread(clean_url+"_"+str(page)+".htm", page, nb_page_topic, sujet_topic)
+        newthread = GetAllPages_topic_Thread(clean_url + "_" + str(page) + ".htm", page, nb_page_topic, sujet_topic)
         newthread.start()
         threadList.append(newthread)
         page += 1
+    i += 1
+    print(str(i) + " topics extrait sur " + str(len(all_topics_url)) + ". Messages récoltés : " + str(len(all_messages)))
+    if len(all_messages) > 50000:
+        files += 1
+        with open('output_' + str(files) + '.csv', 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(all_messages)
 
 print("Attente des threats")
 for curThread in threadList :
     curThread.join()
 
-print(str(len(all_messages)) + " messages total récoltés en fin de script")
+stop = timeit.default_timer()
+m, s = divmod(stop - start, 60)
+h, m = divmod(m, 60)
+print(str(len(all_messages)) + " messages total récoltés en %dh %02dmin et %02ds" % (h, m, s))
 
 with open('output.csv', 'w', newline='', encoding='utf-8') as csvfile:
     writer = csv.writer(csvfile)
