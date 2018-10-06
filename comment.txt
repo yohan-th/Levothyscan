@@ -1,4 +1,6 @@
 
 [1] Prendre pseudo en binaire <Falta_Morg​ana> en <Falta_Morgâ€‹ana> http://forum.doctissimo.fr/sante/autres-drogues-dependances/alcool-cocaine-sujet_183131_2.htm
 
-[2] Problèmes de syntaxe à supprimer: b">   b'>   "
+
+
+[-] Problèmes de syntaxe à supprimer: b">   b'>   " <-- ces éléments en début de cellule permettent de garantir l'encodage du texte et une bonne lecture par n'importe quel logiciel. Par exmple l'encodage par default d'exel est différent de Python. Il est donc préférable de les laisser
