@@ -18,15 +18,18 @@ def clean_message(messages):
     clean_msg_all = []
     for msg in messages:
         msg = re.sub(',', '', msg)  # Pour un decoupage correct sur excel
+        msg = re.sub('>', ' ', msg)
         msg = re.sub('<div.*?</div>', ' ', msg)  # suppr les citations
         msg = re.sub('<img.*?/>', ' ', msg)  #suppr les images
         msg = re.sub('<br />', ' ', msg) #suppr les balise br
         msg = re.sub('<a rel=.*?</a>', ' ', msg) #suppr les liens externe
         msg = re.sub('</?span.*?>', ' ', msg)
-        msg = re.sub('</?[pb]>', ' ', msg)
+        msg = re.sub('</?[pbi]>', ' ', msg)
         msg = re.sub('</?div>?', ' ', msg)
         msg = re.sub('&#034;', ' ', msg)
         msg = re.sub('&nbsp;', ' ', msg)
+        msg = re.sub('</?strong>', ' ', msg)
+        msg = re.sub('href=".*?">', ' ', msg)
         while re.search(" ['\w^.><?!)(/:+-]{0,4} ", msg):
             msg = re.sub(" ['\w^.><?!)(/:+-]{0,4} ", ' ', msg)
         msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
@@ -96,6 +99,8 @@ while page <= int(nb_page_topic):
         html = response.read().decode('utf-8')
     topics = re.findall(r"</?t.*?sujet ligne_booleen(.+?)</tr>", html, re.MULTILINE | re.DOTALL)
     for topic in topics:
+        if debug:
+            print(re.search(r"href=\"(.+?)\"", topic).group(1))
         all_topics_url.append(re.search(r"href=\"(.+?)\"", topic).group(1))
     page += 1
 print("nb de topic = " + str(len(all_topics_url)))
@@ -104,7 +109,7 @@ all_messages = [['Message', 'Pseudo', 'Date', 'URL']]
 
 threadList = []
 i = 0
-files = 0
+valou = True
 for url in all_topics_url:
     with urllib.request.urlopen(url) as response:
         html = response.read().decode('utf-8')
@@ -126,11 +131,11 @@ for url in all_topics_url:
         page += 1
     i += 1
     print(str(i) + " topics extrait sur " + str(len(all_topics_url)) + ". Messages récoltés : " + str(len(all_messages)))
-    if len(all_messages) > 50000:
-        files += 1
-        with open('output_' + str(files) + '.csv', 'w', newline='', encoding='utf-8') as csvfile:
+    if len(all_messages) > 50000 and valou == True:
+        with open('output_tmp.csv', 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(all_messages)
+        valou = False
 
 print("Attente des threats")
 for curThread in threadList :
