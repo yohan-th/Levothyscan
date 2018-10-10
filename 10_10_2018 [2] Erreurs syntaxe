@@ -1,0 +1,21 @@
+J'ai encore quelques soucis, J'ai de la ligne 133124 jusqu'à la ligne 174846 ce ne sont pas des messages
+La même chose de la ligne 90241 jusqu’à la ligne 98192
+
+Vers la ligne 139839 :
+b" tu\tnous\ta\tpas\tecrit\tles\tnormes\tdu\tlabo\tpour\tle\ttsh.\tni\tle\tt3\tet\tT4. a\tvue\tde\tnez\t:\thashimoto. c'est\ta\tdire\thypothyroidie.\tc'est\ta\tdire\tta\tthyroide\test\tattaque\tpar\ttoi\tmeme.\tpar\ttes\tanticorps. pas\tde\tpanique\tle\tmedecin\tte\tdonnera\tune\thormone\tde\tsubstitution:levothyrox "
+
+
+J’ai pas mal de lignes vides. Elles on bien la balise b’ mais après elles ont un autre approstrophe ‘ et rien d’autre. Elles sont dispersées un peu partout mais elles ont un pseudo correspondant.
+
+
+Les profils supprimés s’affichent : Profil supprimÃ©<
+
+Quelques pseudo semblent avoir quelques problèmes de syntaxe : ligne 137651 : pont-de-laâ€‹-lune
+
+Quelques arobases @ trainent dans des commentaires. Après ils sont peut-être dans le commentaire et il faudra les supprimer avec le logiciel de data mining
+
+Ligne 134224 : pas mal d’étoiles dans le commentaire (surement dans le commentaire aussi et à supprimer avec le logiciel.
+
+Ligne 137623 : [#404040 size=2]
+
+Ligne 136871 : &gt; &gt; &gt; &gt; &gt; &gt; &gt; &gt	→ A supprimer peut être aussi avec le logiciel
