@@ -17,22 +17,27 @@ def clean_message(messages):
         print("clean message")
     clean_msg_all = []
     for msg in messages:
-        msg = re.sub(',', '', msg)  # Pour un decoupage correct sur excel
-        msg = re.sub('>', ' ', msg)
-        msg = re.sub('<div.*?</div>', ' ', msg)  # suppr les citations
-        msg = re.sub('<img.*?/>', ' ', msg)  #suppr les images
-        msg = re.sub('<br />', ' ', msg) #suppr les balise br
-        msg = re.sub('<a rel=.*?</a>', ' ', msg) #suppr les liens externe
+        if debug:
+            print("--- CLEAN MSG :")
+            print(msg)
+        msg = re.sub(',', ' ', msg)  # Pour un decoupage correct sur excel
+        msg = re.sub('>', ' ', msg, 1)
+        msg = re.sub('<div(.*?)</div>', ' ', msg)  # suppr les citations
+        msg = re.sub('<img(.*?)/>', ' ', msg)  #suppr les images
+        msg = re.sub('<br.*?>', ' ', msg) #suppr les balise br
+        msg = re.sub('<a rel=(.*?)</a>', ' ', msg) #suppr les liens externe
         msg = re.sub('</?span.*?>', ' ', msg)
         msg = re.sub('</?[pbi]>', ' ', msg)
-        msg = re.sub('</?div>?', ' ', msg)
         msg = re.sub('&#034;', ' ', msg)
         msg = re.sub('&nbsp;', ' ', msg)
         msg = re.sub('</?strong>', ' ', msg)
-        msg = re.sub('href=".*?">', ' ', msg)
+        msg = re.sub('</?div>?', ' ', msg)
         while re.search(" ['\w^.><?!)(/:+-]{0,4} ", msg):
             msg = re.sub(" ['\w^.><?!)(/:+-]{0,4} ", ' ', msg)
         msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
+        if debug:
+            print("--- CLEAN FINAL")
+            print("---> "+str(msg))
         clean_msg_all.append(msg)
     return(clean_msg_all)
 
@@ -83,7 +88,7 @@ if debug:
 with urllib.request.urlopen('http://forum.doctissimo.fr/search_result.php?post_cat_list='+rubrique+'&search='+search+'&resSearch=250') as response:
    html = response.read().decode('utf-8')
 if re.match(r".*aucune réponse n'a été trouvée.*", html, re.MULTILINE|re.DOTALL):
-    print("La recherche donne aucune reponse")
+    print("La recherche de <"+search+"> dans la rubrique <"+rubrique+"> donne aucun résultat")
     sys.exit()
 nb_page_topic = get_nbr_page(html)
 
@@ -131,7 +136,7 @@ for url in all_topics_url:
         page += 1
     i += 1
     print(str(i) + " topics extrait sur " + str(len(all_topics_url)) + ". Messages récoltés : " + str(len(all_messages)))
-    if len(all_messages) > 50000 and valou == True:
+    if len(all_messages) > 1000 and valou == True:
         with open('output_tmp.csv', 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(all_messages)
