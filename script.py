@@ -5,6 +5,7 @@ import csv
 import threading
 import timeit
 import unicodedata
+import time
 
 
 # Parametre
@@ -22,24 +23,28 @@ def clean_message(messages):
             print(msg)
         msg = re.sub(',', ' ', msg)  # Pour un decoupage correct sur excel
         msg = re.sub('>', ' ', msg, 1)
-        msg = re.sub('<div(.*?)</div>', ' ', msg)  # suppr les citations
-        msg = re.sub('<img(.*?)/>', ' ', msg)  #suppr les images
+        msg = re.sub('<div.*?</div>', ' ', msg)  # suppr les citations
+        msg = re.sub('<img.*?/>', ' ', msg)  #suppr les images
         msg = re.sub('<br.*?>', ' ', msg) #suppr les balise br
-        msg = re.sub('<a rel=(.*?)</a>', ' ', msg) #suppr les liens externe
+        msg = re.sub('<a (.*?)</a>', ' ', msg) #suppr les liens externe
         msg = re.sub('</?span.*?>', ' ', msg)
-        msg = re.sub('</?[pbi]>', ' ', msg)
-        msg = re.sub('&#034;', ' ', msg)
-        msg = re.sub('&nbsp;', ' ', msg)
+        msg = re.sub('</?table.*?>', ' ', msg)
+        msg = re.sub('</?[a-z][a-z]?>', ' ', msg) #</i> <lu> et bien d'autre
+        msg = re.sub('&[a-z#0-9]{1,4};', ' ', msg) #&#034; &nbsp; &euro; &gt; &lt;
+        msg = re.sub('\[#[0-9]+ size=[0-9]+\]', ' ', msg)
         msg = re.sub('</?strong>', ' ', msg)
         msg = re.sub('</?div>?', ' ', msg)
-        while re.search(" ['\w^.><?!)(/:+-]{0,4} ", msg):
-            msg = re.sub(" ['\w^.><?!)(/:+-]{0,4} ", ' ', msg)
+        #msg = re.sub('\.+', ' ', msg)
+        while re.search(" ['\w^.><?!)(/@*_&%:+\-]{0,4} ", msg):
+            msg = re.sub(" ['\w^.><?!)(/@*_&%:;+\-]{0,4} ", ' ', msg)
         msg = unicodedata.normalize('NFD', msg).encode('ascii', 'ignore')  # suppr les accents
         if debug:
             print("--- CLEAN FINAL")
-            print("---> "+str(msg))
+            print("--->   \033[91m"+str(msg)+ '\033[0m')
         clean_msg_all.append(msg)
     return(clean_msg_all)
+
+
 
 class GetAllPages_topic_Thread(threading.Thread):
 
@@ -59,19 +64,23 @@ class GetAllPages_topic_Thread(threading.Thread):
         except (http.client.IncompleteRead) as e:
             html = e.partial.decode('utf-8')
         messages_page = clean_message(re.findall(r"</td.*?itemprop=\"text\"(.*?)class=\"clear\"", html))
-        pseudo_all_message = re.findall(r"itemprop=\"name\">(.*?)/span", html, re.MULTILINE | re.DOTALL)
+        pseudo_all_message = re.findall(r"itemprop=\"name\".*?>(.*?)</span", html, re.MULTILINE | re.DOTALL)
         date_all_message = re.findall(r"topic_posted.*?le (.*?)&nbsp;", html, re.MULTILINE | re.DOTALL)
         if debug:
             print("["+str(len(messages_page))+" messages à la page "+str(self.page)+"]")
         i = 0
         while i < len(messages_page):
             if re.match(".*DOC_cryptlink.*", pseudo_all_message[i]):
-                pseudo_all_message[i] = re.search("\" >(.*?)<", pseudo_all_message[i]).group(1)
+                pseudo_all_message[i] = re.sub("<span.*?>", "", pseudo_all_message[i])
+            if debug:
+                print("<\033[92m" + pseudo_all_message[i] + "\033[0m>")
             message_infos = [messages_page[i], pseudo_all_message[i], date_all_message[i], self.url]
             all_messages.append(message_infos)
             i += 1
         if debug:
             print("[" + str(len(messages_page)) + " new msg sur \"" + self.sujet + "\" de la page " + str(self.page) + " sur " + self.nb_page + "]")
+
+
 
 
 def get_nbr_page(html):
@@ -80,6 +89,8 @@ def get_nbr_page(html):
         return(re.findall("\">([0-9]+)<", html)[-1])
     else:
         return("1")
+
+
 
 start = timeit.default_timer()
 print("Recherche de <"+search+"> dans la rubrique <"+rubrique+">")
@@ -96,6 +107,8 @@ print(nb_page_topic+" page(s) sur le sujet <"+search+"> dans la rubrique <"+rubr
 
 all_topics_url = []
 page = 1
+if debug:
+    nb_page_topic = "1"
 while page <= int(nb_page_topic):
     print("telechargement de page " + str(page) + " sur " + nb_page_topic)
     if debug:
@@ -110,12 +123,16 @@ while page <= int(nb_page_topic):
     page += 1
 print("nb de topic = " + str(len(all_topics_url)))
 
+
 all_messages = [['Message', 'Pseudo', 'Date', 'URL']]
+
 
 threadList = []
 i = 0
 valou = True
 for url in all_topics_url:
+    if debug:
+        time.sleep(2)
     with urllib.request.urlopen(url) as response:
         html = response.read().decode('utf-8')
     nb_page_topic = get_nbr_page(html)
@@ -132,6 +149,7 @@ for url in all_topics_url:
             print(clean_url+"_"+str(page)+".htm")
         newthread = GetAllPages_topic_Thread(clean_url + "_" + str(page) + ".htm", page, nb_page_topic, sujet_topic)
         newthread.start()
+        time.sleep(0.1)
         threadList.append(newthread)
         page += 1
     i += 1
@@ -141,6 +159,7 @@ for url in all_topics_url:
             writer = csv.writer(csvfile)
             writer.writerows(all_messages)
         valou = False
+
 
 print("Attente des threats")
 for curThread in threadList :
